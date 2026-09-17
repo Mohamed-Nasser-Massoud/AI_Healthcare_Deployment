@@ -1,0 +1,35 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python and tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Large training data and downloaded archives
+Chest X-Ray Images (Pneumonia).zip
+day1_data/data/chest_xray/
+
+# Generated training outputs outside the deployment package
+models/
+rag_store/
+
+# Keep the deployable copies tracked
+!day2_deploy/models/
+!day2_deploy/models/*.pkl
+!day2_deploy/models/*.pt
+!day2_deploy/app/rag_store/
+!day2_deploy/app/rag_store/*.pkl
+!day2_deploy/app/rag_store/doc_metadata.json
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/

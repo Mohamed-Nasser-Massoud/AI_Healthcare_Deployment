@@ -1,0 +1,16 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.17
+pydantic==2.10.3
+scikit-learn==1.5.2
+joblib==1.4.2
+pillow==11.0.0
+openai==1.57.4
+
+# torch and torchvision are installed separately, from the CPU-only wheel
+# index, by the platform's build command (see render.yaml) rather than
+# listed here. Plain `pip install torch` from PyPI pulls the CUDA build by
+# default on Linux -- ~500MB+ of nvidia-cublas/cudnn/nccl/etc. that a
+# CPU-only free-tier deploy never uses. Without Docker's multi-step RUN to
+# install torch first and then everything else, that CUDA build would end
+# up in this same `pip install -r requirements.txt` and bloat the build.

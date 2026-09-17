@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RespiraAI</title>
+<style>
+  :root {
+    --bg: #F5F7F6;
+    --panel: #FFFFFF;
+    --ink: #1B2B2E;
+    --ink-soft: #52625F;
+    --line: #D8DEDC;
+    --pine: #2E6E62;
+    --pine-soft: #E4EEEB;
+    --slate: #3D5A80;
+    --slate-soft: #E7ECF2;
+    --risk-high: #B5484B;
+    --risk-high-soft: #F6E6E6;
+    --risk-low: #4C7A5D;
+    --risk-low-soft: #E8F0EA;
+    --warn: #A8752A;
+    --warn-soft: #F6ECD9;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.45;
+  }
+
+  h1, h2, h3 {
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 6px;
+  }
+
+  header.top h1 { font-size: 28px; letter-spacing: -0.01em; }
+  header.top p.tagline { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; }
+
+  /* breathing-wave divider -- the one deliberate motion moment on the page */
+  .breath-line {
+    width: 100%;
+    height: 20px;
+    margin: 18px 0 28px;
+    overflow: hidden;
+  }
+  .breath-line svg { width: 200%; height: 20px; animation: drift 7s linear infinite; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) {
+    .breath-line svg { animation: none; }
+  }
+
+  .status-row {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .status-item { display: flex; align-items: center; gap: 7px; }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--line);
+    animation: pulse 2.6s ease-in-out infinite;
+  }
+  .dot.ok { background: var(--pine); }
+  .dot.warn { background: var(--warn); }
+  .dot.down { background: var(--risk-high); animation: none; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dot { animation: none; }
+  }
+
+  nav.tabs {
+    display: flex;
+    gap: 28px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
+  }
+  nav.tabs button {
+    background: none;
+    border: none;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--ink-soft);
+    padding: 0 0 12px;
+    cursor: pointer;
+    position: relative;
+    top: 1px;
+  }
+  nav.tabs button.active {
+    color: var(--ink);
+    border-bottom: 2px solid var(--pine);
+    font-weight: 600;
+  }
+
+  section.panel { display: none; }
+  section.panel.active { display: block; }
+
+  .field {
+    margin-bottom: 16px;
+  }
+  .field label {
+    display: block;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  input[type="number"], select, textarea {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--panel);
+    color: var(--ink);
+  }
+  textarea { resize: vertical; min-height: 70px; }
+
+  .symptom-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px 20px;
+    margin: 18px 0 22px;
+  }
+  @media (max-width: 520px) { .symptom-grid { grid-template-columns: 1fr; } }
+  .symptom-grid label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 14px;
+    color: var(--ink);
+    padding: 7px 0;
+    cursor: pointer;
+  }
+  .symptom-grid input { width: 16px; height: 16px; accent-color: var(--pine); }
+
+  button.primary {
+    background: var(--pine);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  button.primary:disabled { opacity: 0.55; cursor: default; }
+  button.primary:hover:not(:disabled) { background: #275c52; }
+
+  .results { margin-top: 24px; }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 520px) { .compare { grid-template-columns: 1fr; } }
+
+  .result-card {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .result-card h3 { font-size: 13px; color: var(--ink-soft); font-weight: 600; margin-bottom: 10px; }
+  .result-card .verdict { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .result-card .prob { font-size: 13px; color: var(--ink-soft); }
+  .result-card.high { background: var(--risk-high-soft); border-color: #e6c7c8; }
+  .result-card.high .verdict { color: var(--risk-high); }
+  .result-card.low { background: var(--risk-low-soft); border-color: #cfe0d5; }
+  .result-card.low .verdict { color: var(--risk-low); }
+
+  .dropzone {
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    padding: 22px;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .dropzone input { display: block; margin: 10px auto 0; }
+  #xrayPreview { max-width: 100%; max-height: 260px; margin-top: 14px; border-radius: 6px; display: none; }
+
+  .banner {
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-top: 14px;
+  }
+  .banner.warn { background: var(--warn-soft); color: #7a5720; border: 1px solid #e8d2a4; }
+  .banner.error { background: var(--risk-high-soft); color: var(--risk-high); border: 1px solid #e6c7c8; }
+
+  .answer-block {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    margin-top: 18px;
+  }
+  .answer-block p { margin: 0 0 12px; }
+  .sources { display: flex; gap: 8px; flex-wrap: wrap; }
+  .source-chip {
+    font-size: 12px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 3px 9px;
+    color: var(--ink-soft);
+  }
+
+  .hint { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>RespiraAI</h1>
+      <p class="tagline">Four models, one respiratory-health API</p>
+    </div>
+  </header>
+
+  <div class="breath-line" aria-hidden="true">
+    <svg viewBox="0 0 400 20" preserveAspectRatio="none">
+      <path d="M0,10 C20,10 20,2 40,2 C60,2 60,18 80,18 C100,18 100,10 120,10
+               L 200,10 C220,10 220,2 240,2 C260,2 260,18 280,18 C300,18 300,10 320,10
+               L 400,10"
+            fill="none" stroke="#2E6E62" stroke-width="1.4" opacity="0.35"/>
+    </svg>
+  </div>
+
+  <div class="status-row" id="statusRow">
+    <div class="status-item"><span class="dot" id="dot-ml"></span> Classical ML</div>
+    <div class="status-item"><span class="dot" id="dot-dl"></span> Deep learning</div>
+    <div class="status-item"><span class="dot" id="dot-cv"></span> Computer vision</div>
+    <div class="status-item"><span class="dot" id="dot-rag"></span> RAG assistant</div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="lung">Lung cancer risk</button>
+    <button class="tab-btn" data-tab="xray">Chest X-ray</button>
+    <button class="tab-btn" data-tab="ask">Ask about a condition</button>
+  </nav>
+
+  <!-- ============ TAB 1: Lung cancer risk (ML vs DL) ============ -->
+  <section class="panel active" id="panel-lung">
+    <form id="lungForm">
+      <div class="field" style="max-width:180px;">
+        <label for="age">Age</label>
+        <input type="number" id="age" min="1" max="120" value="60" required>
+      </div>
+      <div class="field" style="max-width:180px;">
+        <label for="gender">Sex</label>
+        <select id="gender">
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </select>
+      </div>
+
+      <div class="symptom-grid">
+        <label><input type="checkbox" id="smoking"> Smoker</label>
+        <label><input type="checkbox" id="yellow_fingers"> Yellow-stained fingers</label>
+        <label><input type="checkbox" id="anxiety"> Anxiety</label>
+        <label><input type="checkbox" id="peer_pressure"> Peer pressure</label>
+        <label><input type="checkbox" id="chronic_disease"> Chronic disease</label>
+        <label><input type="checkbox" id="fatigue"> Fatigue</label>
+        <label><input type="checkbox" id="allergy"> Allergies</label>
+        <label><input type="checkbox" id="wheezing"> Wheezing</label>
+        <label><input type="checkbox" id="alcohol_consuming"> Regular alcohol use</label>
+        <label><input type="checkbox" id="coughing"> Persistent cough</label>
+        <label><input type="checkbox" id="shortness_of_breath"> Shortness of breath</label>
+        <label><input type="checkbox" id="swallowing_difficulty"> Difficulty swallowing</label>
+        <label><input type="checkbox" id="chest_pain"> Chest pain</label>
+      </div>
+
+      <button class="primary" type="submit" id="lungSubmit">Check risk</button>
+      <p class="hint">Runs the Random Forest and the neural network on the same inputs, side by side.</p>
+    </form>
+
+    <div class="results" id="lungResults"></div>
+  </section>
+
+  <!-- ============ TAB 2: Chest X-ray ============ -->
+  <section class="panel" id="panel-xray">
+    <div class="dropzone">
+      Choose a chest X-ray image (JPEG or PNG)
+      <input type="file" id="xrayFile" accept="image/*">
+    </div>
+    <img id="xrayPreview" alt="Selected X-ray preview">
+    <div>
+      <button class="primary" type="button" id="xraySubmit" disabled>Analyze X-ray</button>
+    </div>
+    <div class="results" id="xrayResults"></div>
+  </section>
+
+  <!-- ============ TAB 3: Ask about a condition (RAG) ============ -->
+  <section class="panel" id="panel-ask">
+    <div class="field">
+      <label for="question">Your question</label>
+      <textarea id="question" placeholder="e.g. What's the difference between asthma and COPD?"></textarea>
+    </div>
+    <button class="primary" type="button" id="askSubmit">Ask</button>
+    <div class="results" id="askResults"></div>
+  </section>
+
+</div>
+
+<script>
+  // ---------- tab switching ----------
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  // ---------- health status ----------
+  async function loadHealth() {
+    const map = { lung_cancer_ml: "dot-ml", lung_cancer_dl: "dot-dl", xray_cv: "dot-cv", rag: "dot-rag" };
+    try {
+      const res = await fetch("/health");
+      const data = await res.json();
+      for (const [key, dotId] of Object.entries(map)) {
+        const dot = document.getElementById(dotId);
+        const ready = data.models_loaded && data.models_loaded[key];
+        dot.className = "dot " + (ready ? "ok" : "warn");
+      }
+    } catch (e) {
+      Object.values(map).forEach(id => { document.getElementById(id).className = "dot down"; });
+    }
+  }
+  loadHealth();
+
+  // ---------- Tab 1: lung cancer risk ----------
+  const symptomIds = [
+    "smoking", "yellow_fingers", "anxiety", "peer_pressure", "chronic_disease",
+    "fatigue", "allergy", "wheezing", "alcohol_consuming", "coughing",
+    "shortness_of_breath", "swallowing_difficulty", "chest_pain",
+  ];
+
+  function buildLungPayload() {
+    const payload = {
+      gender: document.getElementById("gender").value,
+      age: Number(document.getElementById("age").value),
+    };
+    symptomIds.forEach(id => { payload[id] = document.getElementById(id).checked; });
+    return payload;
+  }
+
+  function renderLungCard(title, data, error) {
+    if (error) {
+      return `<div class="result-card"><h3>${title}</h3><p class="hint">Couldn't reach this model: ${error}</p></div>`;
+    }
+    const isHigh = data.label === "YES";
+    const pct = Math.round(data.probability * 100);
+    return `
+      <div class="result-card ${isHigh ? "high" : "low"}">
+        <h3>${title}</h3>
+        <div class="verdict">${isHigh ? "Elevated risk" : "Low risk"}</div>
+        <div class="prob mono">${pct}% predicted probability</div>
+      </div>`;
+  }
+
+  document.getElementById("lungForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = document.getElementById("lungSubmit");
+    const resultsEl = document.getElementById("lungResults");
+    button.disabled = true;
+    button.textContent = "Checking...";
+    resultsEl.innerHTML = "";
+
+    const payload = buildLungPayload();
+
+    const [mlResult, dlResult] = await Promise.all([
+      fetch("/predict/lung-cancer-ml", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      }).then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)).then(data => ({ data })).catch(error => ({ error })),
+      fetch("/predict/lung-cancer-dl", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      }).then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)).then(data => ({ data })).catch(error => ({ error })),
+    ]);
+
+    resultsEl.innerHTML = `
+      <div class="compare">
+        ${renderLungCard("Random Forest", mlResult.data, mlResult.error)}
+        ${renderLungCard("Neural network", dlResult.data, dlResult.error)}
+      </div>`;
+
+    button.disabled = false;
+    button.textContent = "Check risk";
+  });
+
+  // ---------- Tab 2: chest X-ray ----------
+  const xrayFileInput = document.getElementById("xrayFile");
+  const xrayPreview = document.getElementById("xrayPreview");
+  const xraySubmit = document.getElementById("xraySubmit");
+  let selectedXrayFile = null;
+
+  xrayFileInput.addEventListener("change", () => {
+    const file = xrayFileInput.files[0];
+    if (!file) return;
+    selectedXrayFile = file;
+    xrayPreview.src = URL.createObjectURL(file);
+    xrayPreview.style.display = "block";
+    xraySubmit.disabled = false;
+  });
+
+  xraySubmit.addEventListener("click", async () => {
+    if (!selectedXrayFile) return;
+    const resultsEl = document.getElementById("xrayResults");
+    xraySubmit.disabled = true;
+    xraySubmit.textContent = "Analyzing...";
+    resultsEl.innerHTML = "";
+
+    const formData = new FormData();
+    formData.append("file", selectedXrayFile);
+
+    try {
+      const res = await fetch("/predict/xray", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const isPneumonia = data.label === "PNEUMONIA";
+      const pct = Math.round(data.confidence * 100);
+      let html = `
+        <div class="result-card ${isPneumonia ? "high" : "low"}" style="max-width:320px;">
+          <h3>Result</h3>
+          <div class="verdict">${data.label}</div>
+          <div class="prob mono">${pct}% confidence</div>
+        </div>`;
+      if (data.note) {
+        html += `<div class="banner warn">${data.note}</div>`;
+      }
+      resultsEl.innerHTML = html;
+    } catch (e) {
+      resultsEl.innerHTML = `<div class="banner error">Couldn't analyze this image: ${e.message}</div>`;
+    }
+
+    xraySubmit.disabled = false;
+    xraySubmit.textContent = "Analyze X-ray";
+  });
+
+  // ---------- Tab 3: ask (RAG) ----------
+  document.getElementById("askSubmit").addEventListener("click", async () => {
+    const question = document.getElementById("question").value.trim();
+    const resultsEl = document.getElementById("askResults");
+    if (question.length < 3) {
+      resultsEl.innerHTML = `<div class="banner warn">Type a full question first.</div>`;
+      return;
+    }
+    const button = document.getElementById("askSubmit");
+    button.disabled = true;
+    button.textContent = "Thinking...";
+    resultsEl.innerHTML = "";
+
+    try {
+      const res = await fetch("/ask", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, k: 3 }),
+      });
+      if (res.status === 502) {
+        throw new Error("The assistant is temporarily unavailable. Try again in a moment.");
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail ? JSON.stringify(err.detail) : `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const chips = data.sources.map(s => `<span class="source-chip">${s.replace(/_/g, " ")}</span>`).join("");
+      resultsEl.innerHTML = `
+        <div class="answer-block">
+          <p>${data.answer}</p>
+          <div class="sources">${chips}</div>
+        </div>`;
+    } catch (e) {
+      resultsEl.innerHTML = `<div class="banner error">${e.message}</div>`;
+    }
+
+    button.disabled = false;
+    button.textContent = "Ask";
+  });
+</script>
+</body>
+</html>

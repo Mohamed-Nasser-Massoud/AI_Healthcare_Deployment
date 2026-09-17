@@ -1,0 +1,24 @@
+# Render "Blueprint" -- infra-as-code for a native Python web service, no
+# Dockerfile involved. Push this repo to GitHub, then on Render: New +
+# Blueprint, point it at the repo, and Render reads this file automatically.
+#
+# buildCommand runs once at deploy time; startCommand runs the actual
+# server. Two-step buildCommand installs torch/torchvision from the
+# CPU-only index FIRST, then everything else from requirements.txt -- the
+# non-Docker equivalent of the layered `RUN pip install torch... && RUN pip
+# install -r requirements.txt` pattern a Dockerfile would use for the same
+# reason (see the comment in requirements.txt).
+services:
+  - type: web
+    name: respirai
+    env: python
+    plan: free
+    buildCommand: >
+      pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 torchvision==0.20.1
+      && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false   # set this manually in the Render dashboard -- never commit it to the repo
+      - key: PYTHON_VERSION
+        value: 3.12.3
