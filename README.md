@@ -1,4 +1,4 @@
-# RespiraAI
+# AI_Healthcare_Deployment
 
 AI in healthcare capstone with four components:
 
